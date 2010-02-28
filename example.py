@@ -7,6 +7,8 @@ pyprop.ProjectNamespace = globals()
 
 from libpotential import *
 
+from numpy import sin, cos, pi
+
 
 def SetupConfig(**args):
 	configFile = 'config.ini'
@@ -22,6 +24,10 @@ def SetupConfig(**args):
 			conf.SetValue("Propagation", "timestep", abs(conf.Propagation.timestep))
 			conf.SetValue("Propagation", "renormalization", False)
 
+	if "additional_potentials" in args:
+		curPot = conf.Propagation.potential_evaluation
+		newPot = curPot + args["additional_potentials"]
+		conf.SetValue("Propagation", "potential_evaluation", newPot)
 
 	return conf
 
@@ -61,8 +67,37 @@ def FindGroundstate(**args):
 	prop.SaveWavefunctionHDF(filename, "/wavefunction")
 
 	return prop
-	
 
+
+def Propagate(**args):
+	args['imtime'] = False
+	args['additional_potentials'] = ["LaserPotential"]
+	args['config'] = "propagation.ini"
+	numOutput = args.get("numOutput", 10)
+	
+	#Setup problem
+	conf = SetupConfig(**args)
+	prop = pyprop.Problem(conf)
+	prop.SetupStep()
+	prop.psi.Normalize()
+
+	#Get initial state
+	filename = "groundstate/groundstate_%s.h5" % GetGridPrefix(**args)
+	if not os.path.exists(filename):
+		raise Exception("Ground state file not found, please run FindGroundstate() (%s)" % filename)
+	pyprop.serialization.LoadWavefunctionHDF(filename, "/wavefunction", prop.psi)
+	prop.psi.Normalize()
+
+	initPsi = prop.psi.Copy()
+
+	for t in prop.Advance(numOutput):
+		N = prop.psi.GetNorm()
+		C = abs(prop.psi.InnerProduct(initPsi))**2
+		print "t = %f, norm = %f, corr = %f" % (t, N, C)
+
+	return prop
+
+	
 def Benchmark():
 	timer = pyprop.Timers()
 	
@@ -86,5 +121,6 @@ def Benchmark():
 def LaserFunction(conf, t):
 	E0 = conf.e0
 	omega = conf.omega
-	T = conf.duration
-	return E0/omega * sin(pi*t/T)**2 * cos(omega * t)
+	T = conf.pulse_duration
+	#return E0/omega * sin(pi*t/T)**2 * cos(omega * t)
+	return E0 * sin(pi*t/T)**2 * cos(omega * t)
