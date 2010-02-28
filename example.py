@@ -9,11 +9,14 @@ from libpotential import *
 
 
 def SetupConfig(**args):
-	conf = pyprop.Load("config.ini")
+	configFile = 'config.ini'
+	if 'config' in args:
+		configFile = args['config']
+	conf = pyprop.Load(configFile)
 
 	if "imtime" in args:
 		if args["imtime"]:
-			conf.SetValue("Propagation", "timestep", 1.0j * abs(conf.Propagation.timestep))
+			conf.SetValue("Propagation", "timestep", -1.0j * abs(conf.Propagation.timestep))
 			conf.SetValue("Propagation", "renormalization", True)
 		else:
 			conf.SetValue("Propagation", "timestep", abs(conf.Propagation.timestep))
@@ -31,12 +34,34 @@ def GetGridPrefix(**args):
 
 
 def FindGroundstate(**args):
+	"""
+	Use imaginary time propagation to find ground state
+	"""
 	args["imtime"] = True
 
 	filename = "groundstate/groundstate_%s.h5" % GetGridPrefix(**args)
-	dir = os.path.join(os.path.split(filename)[:-1])
+	dir = os.path.dirname(filename)
 	if not os.path.exists(dir) and pyprop.ProcId == 0:
 		os.makedirs(dir)
+
+	#Setup problem
+	conf = SetupConfig(**args)
+	prop = pyprop.Problem(conf)
+	prop.SetupStep()
+	prop.psi.Normalize()
+
+	#Propagate in imaginary time to obtain ground state
+	for t in prop.Advance(10):
+		N = prop.psi.GetNorm()
+		E = prop.GetEnergy()
+		print "t = %03f, N = %s, E = %s" % (t, N, E)
+
+	#Save groundstate
+	prop.psi.Normalize()
+	prop.SaveWavefunctionHDF(filename, "/wavefunction")
+
+	return prop
+	
 
 def Benchmark():
 	timer = pyprop.Timers()
@@ -57,14 +82,6 @@ def Benchmark():
 
 	print timer
 	
-def Propagate(**args):
-	conf = SetupConfig(**args)
-	prop = pyprop.Problem(conf)
-	prop.SetupStep()
-	for t in prop.Advance(10):
-		E = prop.GetEnergy()
-		print "t = %03f, E = %s" % (t, E)
-
 
 def LaserFunction(conf, t):
 	E0 = conf.e0
