@@ -32,6 +32,15 @@ def SetupConfig(**args):
 	return conf
 
 
+def SetupProblem(**args):
+	conf = SetupConfig(**args)
+	prop = pyprop.Problem(conf)
+	prop.SetupStep()
+	prop.psi.Normalize()
+
+	return prop
+
+
 def GetGridPrefix(**args):
 	conf = SetupConfig(**args)
 	xmax = conf.Representation.rank0[1]
@@ -51,10 +60,7 @@ def FindGroundstate(**args):
 		os.makedirs(dir)
 
 	#Setup problem
-	conf = SetupConfig(**args)
-	prop = pyprop.Problem(conf)
-	prop.SetupStep()
-	prop.psi.Normalize()
+	prop = SetupProblem(**args)
 
 	#Propagate in imaginary time to obtain ground state
 	for t in prop.Advance(10):
@@ -76,10 +82,7 @@ def Propagate(**args):
 	numOutput = args.get("numOutput", 10)
 	
 	#Setup problem
-	conf = SetupConfig(**args)
-	prop = pyprop.Problem(conf)
-	prop.SetupStep()
-	prop.psi.Normalize()
+	prop = SetupProblem(**args)
 
 	#Get initial state
 	filename = "groundstate/groundstate_%s.h5" % GetGridPrefix(**args)
@@ -124,3 +127,7 @@ def LaserFunction(conf, t):
 	T = conf.pulse_duration
 	#return E0/omega * sin(pi*t/T)**2 * cos(omega * t)
 	return E0 * sin(pi*t/T)**2 * cos(omega * t)
+
+
+def LaserFunctionGaussian(conf, t):
+	pass
