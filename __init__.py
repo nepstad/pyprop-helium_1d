@@ -2,8 +2,8 @@ import sys
 import os
 
 #Add Pyprop location to path
-PypropLocation = os.path.realpath("%s/pyprop" % \
-	os.path.split(os.path.realpath(__file__))[0])
+MODULE_PATH = os.path.dirname(os.path.realpath(__file__))
+PypropLocation = os.path.realpath("%s/pyprop" % MODULE_PATH)
 sys.path.append(PypropLocation)
 import pyprop
 
@@ -17,4 +17,4 @@ for key in libpotential.__dict__.iterkeys():
 	if not key.startswith("__"):
 		RegisterProjectNamespace(eval(key))
 
-__all__  = ["example", "absorber", "oneelectrontools", "libpotential", "utils", "laserfunctions"]
+__all__  = ["example", "absorber", "oneelectrontools", "libpotential", "utils", "laserfunctions", "analysis"]

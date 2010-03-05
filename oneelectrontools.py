@@ -1,11 +1,21 @@
+"""
+OneElectronTools
+================
+
+Toolkit for 1D/1-particle related tasks
+
+"""
+import sys
+import logging
 import numpy
 import scipy
 from scipy import linalg
 import tables
 
-from utils import RegisterAll
-from example import SetupProblem, GetGridPrefix
+from utils import RegisterAll, GetClassLogger
+from example import SetupProblem, GetGridPrefix, GetEigenstateFilename
 import pyprop
+
 
 @RegisterAll
 def GetHamiltonMatrix1D(prop):
@@ -48,20 +58,28 @@ def SetupEigenstates1D(prop):
 	eigenValues = []
 	eigenVectors = []
 
-	eigenvectorScaling = 1
+	#get logger
+	#logger = logging.getLogger("%s" % (sys._getframe().f_code.co_name))
+	logger = logging.getLogger("%s" % __name__)
 
+	#Get matrix representation of hamiltonian
+	logger.info("Setting up hamiltonian matrix representation...")
 	M = GetHamiltonMatrix1D(prop)
 
+	#compute eigenvalues
+	logger.info("Computing eigenvalues...")
 	E, V = scipy.linalg.eigh(M.real)
 
+	#Sort and normalize eigenvectors
+	logger.info("Sort and normalize...")
 	idx = numpy.argsort(E)
 	E = E[idx]
 	eigenValues = E
-
-	#Sort and normalize eigenvectors
-	eigenVectors = numpy.array([v/linalg.norm(v) for v in [V[:,idx[i]] for i in range(V.shape[1])]]).transpose()
+	eigenVectors = numpy.array([v/linalg.norm(v) 
+		for v in [V[:,idx[i]] for i in range(V.shape[1])]]).transpose()
 
 	#assure correct phase convention (first oscillation should start out real positive)
+	logger.info("Applying phase convention...")
 	for i, curE in enumerate(E):
 		phaseBuffer = V[:,i]
 		phase = numpy.arctan2(numpy.imag(phaseBuffer[1]), numpy.real(phaseBuffer[1]))
@@ -72,8 +90,9 @@ def SetupEigenstates1D(prop):
 
 @RegisterAll
 def SaveEigenstates1D(**args):
-	prefix = GetGridPrefix(**args)
-	outputFile = "eigenstates/eigenstates_1D_%s.h5" % (prefix)
+	#prefix = GetGridPrefix(**args)
+	#outputFile = "%s/eigenstates_1D_%s.h5" % (EIGENSTATE_PATH, prefix)
+	outputFile = GetEigenstateFilename(**args)
 
 	#Setup problem
 	prop = SetupProblem(**args)

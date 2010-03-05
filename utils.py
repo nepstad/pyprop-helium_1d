@@ -78,4 +78,3 @@ def GetClassLogger(obj):
 	cls = obj.__class__
 	return logging.getLogger("%s.%s" % (cls.__module__, cls.__name__))
 
-

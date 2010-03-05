@@ -1,4 +1,5 @@
 pyprop
+*.pyc
 *.so
 *.o
 *.swp

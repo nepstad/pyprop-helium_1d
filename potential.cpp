@@ -51,9 +51,17 @@ public:
 
 	inline double GetPotentialValue(const blitz::TinyVector<double, Rank> &pos)
 	{
-		double x1 = pos(0);
-		double x2 = pos(1);
-		return x1 + x2;
+		if (Rank == 1)
+		{
+			double x = pos(0);
+			return x;
+		}
+		else if (Rank == 2)
+		{
+			double x1 = pos(0);
+			double x2 = pos(1);
+			return x1 + x2;
+		}
 	}
 
 };

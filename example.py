@@ -1,15 +1,16 @@
-import sys
 import os
-
-sys.path.append("./pyprop")
 import pyprop
-pyprop.ProjectNamespace = globals()
 
-from libpotential import *
+from helium_1d import MODULE_PATH
+from utils import RegisterProjectNamespace, RegisterAll
+from laserfunctions import LaserFunction
 
-from numpy import sin, cos, pi
+#Data file locations. Should be updated by user when the module is imported
+EIGENSTATE_PATH = "%s/eigenstates" % MODULE_PATH
+GROUNDSTATE_PATH = "%s/groundstate" % MODULE_PATH
+SIMULATION_DATA_PATH = "%s/output" % MODULE_PATH
 
-
+@RegisterProjectNamespace
 def SetupConfig(**args):
 	configFile = 'config.ini'
 	if 'config' in args:
@@ -32,6 +33,7 @@ def SetupConfig(**args):
 	return conf
 
 
+@RegisterAll
 def SetupProblem(**args):
 	conf = SetupConfig(**args)
 	prop = pyprop.Problem(conf)
@@ -41,20 +43,35 @@ def SetupProblem(**args):
 	return prop
 
 
+@RegisterAll
 def GetGridPrefix(**args):
 	conf = SetupConfig(**args)
 	xmax = conf.Representation.rank0[1]
 	count = conf.Representation.rank0[2]
 	return "xmax%s_n%s" % (xmax, count)
 
+@RegisterAll
+def GetEigenstateFilename(**args):
+	prefix = GetGridPrefix(**args)
+	filename = "%s/eigenstates_1D_%s.h5" % (EIGENSTATE_PATH, prefix)
+	return filename
 
+@RegisterAll
+def GetGroundstateFilename(**args):
+	prefix = GetGridPrefix(**args)
+	filename = "%s/groundstate_%s.h5" % (GROUNDSTATE_PATH, prefix)
+	return filename
+
+
+@RegisterAll
 def FindGroundstate(**args):
 	"""
 	Use imaginary time propagation to find ground state
 	"""
 	args["imtime"] = True
 
-	filename = "groundstate/groundstate_%s.h5" % GetGridPrefix(**args)
+	#filename = "%s/groundstate_%s.h5" % (outputDir, GetGridPrefix(**args))
+	filename = GetGroundstateFilename(**args)
 	dir = os.path.dirname(filename)
 	if not os.path.exists(dir) and pyprop.ProcId == 0:
 		os.makedirs(dir)
@@ -66,7 +83,7 @@ def FindGroundstate(**args):
 	for t in prop.Advance(10):
 		N = prop.psi.GetNorm()
 		E = prop.GetEnergy()
-		print "t = %03f, N = %s, E = %s" % (t, N, E)
+		pyprop.PrintOut("t = %03f, N = %s, E = %s" % (t, N, E))
 
 	#Save groundstate
 	prop.psi.Normalize()
@@ -74,33 +91,54 @@ def FindGroundstate(**args):
 
 	return prop
 
-
+@RegisterAll
 def Propagate(**args):
-	args['imtime'] = False
-	args['additional_potentials'] = ["LaserPotential"]
-	args['config'] = "propagation.ini"
-	numOutput = args.get("numOutput", 10)
+	#args['imtime'] = False
+	#args['additional_potentials'] = ["LaserPotential"]
+	#args['config'] = "propagation.ini"
+	numOutput = args.get("numOutput", 50)
+
+	#get propagation tasks
+	propTasks = args.get("propagationTasks", [])
 	
 	#Setup problem
 	prop = SetupProblem(**args)
 
 	#Get initial state
-	filename = "groundstate/groundstate_%s.h5" % GetGridPrefix(**args)
+	#filename = "%s/groundstate_%s.h5" % (groundstateDir, GetGridPrefix(**args))
+	filename = GetGroundstateFilename(**args)
 	if not os.path.exists(filename):
 		raise Exception("Ground state file not found, please run FindGroundstate() (%s)" % filename)
 	pyprop.serialization.LoadWavefunctionHDF(filename, "/wavefunction", prop.psi)
 	prop.psi.Normalize()
 
 	initPsi = prop.psi.Copy()
+	xGrid = prop.psi.GetRepresentation().GetLocalGrid(0)
+
+	normList = []
+	corrList = []
+	timeList = []
 
 	for t in prop.Advance(numOutput):
 		N = prop.psi.GetNorm()
 		C = abs(prop.psi.InnerProduct(initPsi))**2
-		print "t = %f, norm = %f, corr = %f" % (t, N, C)
+		pyprop.PrintOut("t = %f, norm = %f, corr = %f" % (t, N, C))
+
+		normList += [N]
+		corrList += [C]
+		timeList += [t]
+
+		#other propagation tasks
+		for task in propTasks:
+			task(t, prop)
+	
+	prop.NormList = normList
+	prop.CorrList = corrList
+	prop.TimeList = timeList
 
 	return prop
 
-	
+
 def Benchmark():
 	timer = pyprop.Timers()
 	
@@ -120,14 +158,3 @@ def Benchmark():
 
 	print timer
 	
-
-def LaserFunction(conf, t):
-	E0 = conf.e0
-	omega = conf.omega
-	T = conf.pulse_duration
-	#return E0/omega * sin(pi*t/T)**2 * cos(omega * t)
-	return E0 * sin(pi*t/T)**2 * cos(omega * t)
-
-
-def LaserFunctionGaussian(conf, t):
-	pass

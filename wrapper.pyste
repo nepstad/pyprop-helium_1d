@@ -2,3 +2,13 @@ PotentialEvaluator = Template("DynamicPotentialEvaluator", "potential.cpp")
 PotentialEvaluator("SoftColoumbPotential<2> 2","SoftColoumbPotential_2")
 PotentialEvaluator("LaserDipolePotential<2> 2","LaserDipolePotential_2")
 
+#1d potentials
+PotentialEvaluator("LaserDipolePotential<1> 1","LaserDipolePotential_1")
+PotentialEvaluator1D = Template("DynamicPotentialEvaluator", "potential1d.cpp")
+PotentialEvaluator1D("OneElectronSoftColoumbPotential<1> 1","OneElectronSoftColoumbPotential_1")
+PotentialEvaluator1D("ComplexAbsorbingPotential<1> 1","ComplexAbsorbingPotential_1")
+
+#analysis
+Include("analysis.cpp")
+module_code('    def("CalculateProjectionOneParticleStates", CalculateProjectionOneParticleStates);\n')
+
