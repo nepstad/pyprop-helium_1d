@@ -43,11 +43,12 @@ Array<cplx, 2> CalculateProjectionOneParticleStates(MatrixType V1, MatrixType V2
 
 	//project on V2 states
 	tempProj = 0;
+	cplx curPsi = 0;
 	for (int x1=0; x1<xcount; x1++)
 	{
 		for (int x2=0; x2<xcount; x2++)
 		{
-			cplx curPsi = psiData(x1, x2);
+			curPsi = psiData(x1, x2);
 			for (int i2=0; i2<count2; i2++)
 			{
 				tempProj(x1, i2) += conj(V2(x2, i2)) * curPsi;
@@ -56,13 +57,15 @@ Array<cplx, 2> CalculateProjectionOneParticleStates(MatrixType V1, MatrixType V2
 	}
 
 	//project on V1 states
+	cplx a = 0;
 	for (int x1=0; x1<xcount; x1++)
 	{
 		for (int i1=0; i1<count1; i1++)
 		{
+			a = conj(V1(x1, i1));
 			for (int i2=0; i2<count2; i2++)
 			{
-				proj(i1, i2) += conj(V1(x1, i1)) * tempProj(x1, i2);
+				proj(i1, i2) += a * tempProj(x1, i2);
 			}
 		}
 	}
