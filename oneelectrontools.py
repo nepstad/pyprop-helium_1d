@@ -71,12 +71,14 @@ def SetupEigenstates1D(prop):
 	E, V = scipy.linalg.eigh(M.real)
 
 	#Sort and normalize eigenvectors
+	xGrid = prop.psi.GetRepresentation().GetLocalGrid(0)
+	dx = diff(xGrid)[0]
 	logger.info("Sort and normalize...")
 	idx = numpy.argsort(E)
 	E = E[idx]
 	eigenValues = E
-	eigenVectors = numpy.array([v/linalg.norm(v) 
-		for v in [V[:,idx[i]] for i in range(V.shape[1])]]).transpose()
+	xNorm = lambda v: sqrt(abs(sum(conj(v) * v)) * dx)
+	eigenVectors = numpy.array([v/xNorm(v) for v in [V[:,idx[i]] for i in range(V.shape[1])]]).transpose()
 
 	#assure correct phase convention (first oscillation should start out real positive)
 	logger.info("Applying phase convention...")

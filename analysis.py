@@ -1,5 +1,7 @@
 from numpy import sum
+import pyprop
 from libpotential import CalculateProjectionOneParticleStates
+from example import GetGroundstateFilename
 
 def GetPopulationProductStates(psi, singleStates1, singleStates2):
 	"""
@@ -23,9 +25,21 @@ def GetPopulationProductStates(psi, singleStates1, singleStates2):
 	data = tempPsi.GetData()
 
 	#Get the projection for every combination of v1 and v2
-	projV = CalculateProjectionOneParticleStates(singleStates1, singleStates2, data)
+	def calculateProjections():
+		return CalculateProjectionOneParticleStates(singleStates1, singleStates2, data)
 	#population = sum([abs(p)**2 for i1, i2, p in projV])
+	projV = calculateProjections()
 	populations = abs(projV)**2
 
 	return populations
 
+
+def RemoveGroundstateProjection(psi, conf):
+	"""
+	Remove ground state  projection from wavefunction
+
+	"""
+	filename = GetGroundstateFilename(config = conf)
+	gsPsi = pyprop.CreateWavefunctionFromFile(filename)
+	proj = psi.InnerProduct(gsPsi)
+	psi.GetData()[:] -= proj * gsPsi.GetData()

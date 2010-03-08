@@ -4,6 +4,7 @@ import pyprop
 from helium_1d import MODULE_PATH
 from utils import RegisterProjectNamespace, RegisterAll
 from laserfunctions import LaserFunction
+import copy as objectcopier
 
 #Data file locations. Should be updated by user when the module is imported
 EIGENSTATE_PATH = "%s/eigenstates" % MODULE_PATH
@@ -12,10 +13,16 @@ SIMULATION_DATA_PATH = "%s/output" % MODULE_PATH
 
 @RegisterProjectNamespace
 def SetupConfig(**args):
-	configFile = 'config.ini'
-	if 'config' in args:
-		configFile = args['config']
-	conf = pyprop.Load(configFile)
+	configFile = args.get("config", "config.ini")
+	#if configfile is a string, load it, otherwise, treat it as
+	#a config parser object
+	if isinstance(configFile, str):
+		conf = pyprop.Load(configFile)
+	elif isinstance(configFile, pyprop.Config):
+		#Let's make a deep copy here to avoid changing input
+		conf = objectcopier.deepcopy(configFile)
+	else:
+		conf = pyprop.Config(configFile)
 
 	if "imtime" in args:
 		if args["imtime"]:
