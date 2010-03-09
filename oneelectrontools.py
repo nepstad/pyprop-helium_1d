@@ -5,15 +5,16 @@ OneElectronTools
 Toolkit for 1D/1-particle related tasks
 
 """
-import sys
 import logging
 import numpy
+from numpy import diff, sqrt, conj
+
 import scipy
-from scipy import linalg
+import scipy.linalg
 import tables
 
-from utils import RegisterAll, GetClassLogger
-from example import SetupProblem, GetGridPrefix, GetEigenstateFilename
+from utils import RegisterAll
+from example import SetupProblem, GetEigenstateFilename
 import pyprop
 
 
@@ -77,7 +78,7 @@ def SetupEigenstates1D(prop):
 	idx = numpy.argsort(E)
 	E = E[idx]
 	eigenValues = E
-	xNorm = lambda v: sqrt(abs(sum(conj(v) * v)) * dx)
+	xNorm = lambda v: sqrt(numpy.abs(numpy.sum(conj(v) * v)) * dx)
 	eigenVectors = numpy.array([v/xNorm(v) for v in [V[:,idx[i]] for i in range(V.shape[1])]]).transpose()
 
 	#assure correct phase convention (first oscillation should start out real positive)
@@ -92,8 +93,6 @@ def SetupEigenstates1D(prop):
 
 @RegisterAll
 def SaveEigenstates1D(**args):
-	#prefix = GetGridPrefix(**args)
-	#outputFile = "%s/eigenstates_1D_%s.h5" % (EIGENSTATE_PATH, prefix)
 	outputFile = GetEigenstateFilename(**args)
 
 	#Setup problem
