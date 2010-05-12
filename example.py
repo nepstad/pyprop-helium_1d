@@ -1,4 +1,5 @@
 import os
+import pypar
 import pyprop
 
 from helium_1d import MODULE_PATH
@@ -125,6 +126,28 @@ def Propagate(**args):
 	normList = []
 	corrList = []
 	timeList = []
+
+	#handle restarting
+	if getattr(args["restart"], False):
+		restartFile = args["restartFile"]
+		
+		#load checkpoint wavefunction
+		pyprop.serialization.LoadWavefunctionHDF(restartFile, "/wavefunction", prop.psi)
+
+		#get restart time
+		restartTime = -1
+		if pyprop.ProcId == 0:
+			h5file = tables.openFile(restartFile)
+			try:
+				restartTime = h5file.root.wavefunction._v_attrs.Time
+			finally:
+				h5file.close()
+
+		#distribute restart time to all procs
+		pypar.broadcast(restartTime, 0)
+
+		#restart all propagators with correct time
+		prop.RestartPropagation(prop.TimeStep, 0.0, restartTime)
 
 	for t in prop.Advance(numOutput):
 		N = prop.psi.GetNorm()
