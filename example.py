@@ -2,6 +2,7 @@ import os
 import pypar
 import pyprop
 import tables
+import numpy
 
 from helium_1d import MODULE_PATH
 from utils import RegisterProjectNamespace, RegisterAll
@@ -140,11 +141,11 @@ def Propagate(**args):
 		pyprop.serialization.LoadWavefunctionHDF(restartFile, "/wavefunction", prop.psi)
 
 		#get restart time
-		restartTime = -1
+		restartTime = numpy.zeros(1, dtype=numpy.double)
 		if pyprop.ProcId == 0:
 			h5file = tables.openFile(restartFile)
 			try:
-				restartTime = h5file.root.wavefunction._v_attrs.Time
+				restartTime[0] = h5file.root.wavefunction._v_attrs.Time
 			finally:
 				h5file.close()
 
@@ -152,7 +153,7 @@ def Propagate(**args):
 		pypar.broadcast(restartTime, 0)
 
 		#restart all propagators with correct time
-		prop.RestartPropagation(prop.TimeStep, restartTime, T)
+		prop.RestartPropagation(prop.TimeStep, restartTime[0], T)
 
 	for t in prop.Advance(numOutput):
 		N = prop.psi.GetNorm()
