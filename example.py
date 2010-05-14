@@ -1,6 +1,7 @@
 import os
 import pypar
 import pyprop
+import tables
 
 from helium_1d import MODULE_PATH
 from utils import RegisterProjectNamespace, RegisterAll
@@ -128,8 +129,12 @@ def Propagate(**args):
 	timeList = []
 
 	#handle restarting
-	if getattr(args["restart"], False):
+	if args.get("restart", False):
+		pyprop.PrintOut("Restarting propagation...")
 		restartFile = args["restartFile"]
+
+		#Get original propagation end time
+		T = prop.Config.Propagation.duration
 		
 		#load checkpoint wavefunction
 		pyprop.serialization.LoadWavefunctionHDF(restartFile, "/wavefunction", prop.psi)
@@ -147,7 +152,7 @@ def Propagate(**args):
 		pypar.broadcast(restartTime, 0)
 
 		#restart all propagators with correct time
-		prop.RestartPropagation(prop.TimeStep, 0.0, restartTime)
+		prop.RestartPropagation(prop.TimeStep, restartTime, T)
 
 	for t in prop.Advance(numOutput):
 		N = prop.psi.GetNorm()
