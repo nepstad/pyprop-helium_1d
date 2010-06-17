@@ -69,7 +69,8 @@ def GetEigenstateFilename(**args):
 @RegisterAll
 def GetGroundstateFilename(**args):
 	prefix = GetGridPrefix(**args)
-	filename = "%s/groundstate_%s.h5" % (GROUNDSTATE_PATH, prefix)
+	modelPostfix = "_" + args.get("modelPostfix", "std")
+	filename = "%s/groundstate_%s%s.h5" % (GROUNDSTATE_PATH, prefix, modelPostfix)
 	return filename
 
 
@@ -100,6 +101,63 @@ def FindGroundstate(**args):
 	prop.SaveWavefunctionHDF(filename, "/wavefunction")
 
 	return prop
+
+
+@RegisterAll
+def FindEigenvalues(**args):
+	"""
+	Use Piram to find some eigenvalues.
+
+	"""
+	prop = SetupProblem(**args)
+	solver = pyprop.PiramSolver(prop)
+	solver.Solve()
+	print solver.GetEigenvalues()
+
+	return solver
+
+
+@RegisterAll
+def SaveEigenvalues(filename, solver):
+	"""
+	Saves the output of FindEigenvalues to a hdf5 file.
+	"""
+
+	#Get eigenvalues
+	prop = solver.BaseProblem
+	E = array(solver.GetEigenvalues())
+
+	#remove file if it exists
+	try:
+		if os.path.exists(filename):
+			if pyprop.ProcId == 0:
+				os.remove(filename)
+	except:
+		pyprop.PrintOut("Could not remove %s (%s)" % (filename, sys.exc_info()[1]))
+
+	#Store eigenvalues and eigenvectors
+	PrintOut("Now storing eigenvectors...")
+	for i in range(len(E)):
+		solver.SetEigenvector(prop.psi, i)
+		prop.SaveWavefunctionHDF(filename, GetEigenvectorDatasetPath(i))
+
+	if pyprop.ProcId == 0:
+		RemoveExistingDataset(filename, "/Eig/Eigenvalues")
+		RemoveExistingDataset(filename, "/Eig/ErrorEstimateListPIRAM")
+		RemoveExistingDataset(filename, "/Eig/ConvergenceEstimateEig")
+		h5file = tables.openFile(filename, "r+")
+		try:
+			myGroup = h5file.getNode("/Eig")
+			h5file.createArray(myGroup, "Eigenvalues", E)
+			h5file.createArray(myGroup, "ErrorEstimateListPIRAM", errorEstimatesPIRAM)
+			h5file.createArray(myGroup, "ConvergenceEstimateEig", convergenceEstimatesEig)
+
+			#Store config
+			myGroup._v_attrs.configObject = prop.Config.cfgObj
+			
+		finally:
+			h5file.close()
+
 
 @RegisterAll
 def Propagate(**args):

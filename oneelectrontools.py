@@ -7,15 +7,17 @@ Toolkit for 1D/1-particle related tasks
 """
 import logging
 import numpy
-from numpy import diff, sqrt, conj
-
-import scipy
-import scipy.linalg
+from numpy import diff, sqrt, conj, complex, double
+import pyprop
+try:
+	import scipy
+	import scipy.linalg
+except:
+	pyprop.PrintOut("Could not load scipy.")
 import tables
 
 from utils import RegisterAll
 from example import SetupProblem, GetEigenstateFilename
-import pyprop
 
 
 @RegisterAll
@@ -29,7 +31,7 @@ def GetHamiltonMatrix1D(prop):
 	assert numpy.rank(prop.psi.GetData()) == 1
 
 	size = prop.psi.GetData().size
-	matrix = numpy.zeros((size, size), dtype=complex)
+	matrix = numpy.zeros((size, size), dtype=double)
 	tempPsi = prop.psi.CopyDeep()
 
 	for i in range(size):
@@ -39,7 +41,7 @@ def GetHamiltonMatrix1D(prop):
 		tempPsi.Clear()
 		prop.MultiplyHamiltonian(prop.psi, tempPsi)
 		
-		matrix[:, i] = tempPsi.GetData()[:]
+		matrix[:, i] = tempPsi.GetData()[:].real
 		
 	return matrix
 
@@ -69,7 +71,7 @@ def SetupEigenstates1D(prop):
 
 	#compute eigenvalues
 	logger.info("Computing eigenvalues...")
-	E, V = scipy.linalg.eigh(M.real)
+	E, V = scipy.linalg.eigh(M, overwrite_a = True)
 
 	#Sort and normalize eigenvectors
 	xGrid = prop.psi.GetRepresentation().GetLocalGrid(0)
