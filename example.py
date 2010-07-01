@@ -1,8 +1,9 @@
-import os
+import os, sys
 import pypar
 import pyprop
 import tables
 import numpy
+import logging
 
 from helium_1d import MODULE_PATH
 from utils import RegisterProjectNamespace, RegisterAll
@@ -67,6 +68,10 @@ def GetEigenstateFilename(**args):
 	return filename
 
 @RegisterAll
+def GetEigenvectorDatasetPath(eigenvectorIndex):
+	return "/Eig/%s" % GetEigenvectorDatasetName(eigenvectorIndex) 
+
+@RegisterAll
 def GetGroundstateFilename(**args):
 	prefix = GetGridPrefix(**args)
 	modelPostfix = "_" + args.get("modelPostfix", "std")
@@ -119,13 +124,17 @@ def FindEigenvalues(**args):
 
 @RegisterAll
 def SaveEigenvalues(filename, solver):
-	"""
-	Saves the output of FindEigenvalues to a hdf5 file.
+	""" Saves the output of FindEigenvalues to a hdf5 file.
+
 	"""
 
 	#Get eigenvalues
 	prop = solver.BaseProblem
-	E = array(solver.GetEigenvalues())
+	E = numpy.array(solver.GetEigenvalues())
+
+	#Get eigenvalue error estimates
+	errorEstimatesPIRAM = solver.Solver.GetErrorEstimates()
+	convergenceEstimatesEig = solver.Solver.GetConvergenceEstimates()
 
 	#remove file if it exists
 	try:
@@ -133,18 +142,18 @@ def SaveEigenvalues(filename, solver):
 			if pyprop.ProcId == 0:
 				os.remove(filename)
 	except:
-		pyprop.PrintOut("Could not remove %s (%s)" % (filename, sys.exc_info()[1]))
+		logging.error("Could not remove %s (%s)" % (filename, sys.exc_info()[1]))
 
 	#Store eigenvalues and eigenvectors
-	PrintOut("Now storing eigenvectors...")
+	logging.info("Now storing eigenvectors...")
 	for i in range(len(E)):
 		solver.SetEigenvector(prop.psi, i)
 		prop.SaveWavefunctionHDF(filename, GetEigenvectorDatasetPath(i))
 
 	if pyprop.ProcId == 0:
-		RemoveExistingDataset(filename, "/Eig/Eigenvalues")
-		RemoveExistingDataset(filename, "/Eig/ErrorEstimateListPIRAM")
-		RemoveExistingDataset(filename, "/Eig/ConvergenceEstimateEig")
+		pyprop.RemoveExistingDataset(filename, "/Eig/Eigenvalues")
+		pyprop.RemoveExistingDataset(filename, "/Eig/ErrorEstimateListPIRAM")
+		pyprop.RemoveExistingDataset(filename, "/Eig/ConvergenceEstimateEig")
 		h5file = tables.openFile(filename, "r+")
 		try:
 			myGroup = h5file.getNode("/Eig")
